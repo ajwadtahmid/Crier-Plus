@@ -49,7 +49,10 @@ struct ReminderListView: View {
             .sheet(item: $selectedReminder) { reminder in
                 ReminderFormView(existingReminder: reminder)
             }
-            .alert("Delete reminder?", isPresented: .constant(reminderToDelete != nil)) {
+            .alert("Delete reminder?", isPresented: Binding(
+                get: { reminderToDelete != nil },
+                set: { if !$0 { reminderToDelete = nil } }
+            )) {
                 Button("Cancel", role: .cancel) { reminderToDelete = nil }
                 Button("Delete", role: .destructive) {
                     if let r = reminderToDelete { deleteReminder(r) }
