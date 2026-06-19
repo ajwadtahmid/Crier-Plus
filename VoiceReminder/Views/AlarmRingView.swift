@@ -15,6 +15,7 @@ struct AlarmRingView: View {
                     .font(.system(size: 72))
                     .foregroundStyle(Color("Primary"))
                     .symbolEffect(.variableColor.iterative)
+                    .accessibilityHidden(true)
 
                 Text(reminderTitle)
                     .font(.system(size: 28, weight: .semibold))
@@ -35,6 +36,8 @@ struct AlarmRingView: View {
                         .background(Color("Primary"))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+                .buttonStyle(ScaleFeedbackButtonStyle())
+                .accessibilityLabel("Dismiss alarm for \(reminderTitle)")
                 .padding(.horizontal, 16)
                 .padding(.bottom, 40)
             }

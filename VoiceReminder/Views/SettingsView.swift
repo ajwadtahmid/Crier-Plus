@@ -48,6 +48,8 @@ struct SettingsView: View {
                     guard !editedUsername.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     showUsernameAlert = true
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Save new username")
                 .disabled(
                     editedUsername == username ||
                     editedUsername.trimmingCharacters(in: .whitespaces).isEmpty
@@ -81,6 +83,8 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "speaker.wave.2")
                     }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Preview speech rate")
                 }
                 HStack {
                     Text("Slow")
@@ -104,6 +108,8 @@ struct SettingsView: View {
                     } label: {
                         Image(systemName: "speaker.wave.2")
                     }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Preview speech pitch")
                 }
                 HStack {
                     Text("Low")

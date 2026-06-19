@@ -25,6 +25,7 @@ struct ReminderListView: View {
                     NavigationLink(destination: SettingsView()) {
                         Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("Settings")
                 }
                 ToolbarItem(placement: .bottomBar) {
                     Button {
@@ -41,6 +42,7 @@ struct ReminderListView: View {
                         .background(Color("Primary"))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
+                    .buttonStyle(ScaleFeedbackButtonStyle())
                 }
             }
             .sheet(isPresented: $showingForm) {
@@ -78,6 +80,7 @@ struct ReminderListView: View {
             Image(systemName: "speaker.wave.2")
                 .font(.system(size: 48))
                 .foregroundStyle(Color("TextSecondary"))
+                .accessibilityHidden(true)
             Text("No reminders yet")
                 .font(.system(size: 28, weight: .semibold))
             Text("Create one to get started")
@@ -114,6 +117,7 @@ struct ReminderListView: View {
                 set: { newValue in toggleReminder(reminder, active: newValue) }
             ))
             .labelsHidden()
+            .accessibilityLabel("\(reminder.isActive ? "Disable" : "Enable") \(reminder.title)")
             .onChange(of: reminder.isActive) { _, _ in
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
@@ -176,7 +180,7 @@ struct ReminderListView: View {
     private func deleteReminder(_ reminder: Reminder) {
         NotificationService.shared.cancel(reminder.id)
         AudioGenerationService().deleteAudio(at: reminder.audioFilePath)
-        withAnimation { modelContext.delete(reminder) }
+        withAnimation(.easeInOut(duration: 0.2)) { modelContext.delete(reminder) }
         reminderToDelete = nil
     }
 

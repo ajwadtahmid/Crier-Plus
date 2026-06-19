@@ -109,6 +109,8 @@ struct ReminderFormView: View {
                 .background(isLoadingAI ? Color("Primary").opacity(0.5) : Color("Primary"))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .buttonStyle(ScaleFeedbackButtonStyle())
+            .accessibilityLabel("Get AI suggestions for spoken message")
             .disabled(isLoadingAI || title.isEmpty)
 
             if isLoadingAI {
@@ -177,6 +179,8 @@ struct ReminderFormView: View {
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Border"), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .accessibilityLabel("Use \(label) suggestion: \(text)")
     }
 
     private var toneSection: some View {
@@ -224,6 +228,8 @@ struct ReminderFormView: View {
             .font(.system(size: 16, weight: .medium))
             .foregroundStyle(Color("Primary"))
         }
+        .frame(minHeight: 44)
+        .accessibilityLabel("Preview spoken reminder message")
         .disabled(title.isEmpty)
     }
 
@@ -284,6 +290,7 @@ struct ReminderFormView: View {
                 .background(title.isEmpty ? Color("Primary").opacity(0.5) : Color("Primary"))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .buttonStyle(ScaleFeedbackButtonStyle())
             .disabled(title.isEmpty || isSaving)
 
             if let error = saveErrorMessage {

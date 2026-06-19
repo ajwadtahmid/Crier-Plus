@@ -7,8 +7,12 @@ final class AudioGenerationService {
     private let previewSynth = AVSpeechSynthesizer()
 
     func generateAudio(for reminder: Reminder, message: String) async throws -> URL {
-        let rate  = UserDefaults.standard.object(forKey: AppStorageKey.speechRate)  as? Float ?? 0.5
-        let pitch = UserDefaults.standard.object(forKey: AppStorageKey.speechPitch) as? Float ?? 1.0
+        // @AppStorage stores as Double; use double(forKey:) then convert to Float.
+        // double(forKey:) returns 0.0 when unset, so fall back to defaults in that case.
+        let storedRate  = UserDefaults.standard.double(forKey: AppStorageKey.speechRate)
+        let storedPitch = UserDefaults.standard.double(forKey: AppStorageKey.speechPitch)
+        let rate:  Float = storedRate  > 0 ? Float(storedRate)  : 0.5
+        let pitch: Float = storedPitch > 0 ? Float(storedPitch) : 1.0
 
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let outputURL = docs.appendingPathComponent("reminder_\(reminder.id.uuidString).caf")
@@ -51,8 +55,10 @@ final class AudioGenerationService {
     }
 
     func speakPreview(_ message: String) {
-        let rate  = UserDefaults.standard.object(forKey: AppStorageKey.speechRate)  as? Float ?? 0.5
-        let pitch = UserDefaults.standard.object(forKey: AppStorageKey.speechPitch) as? Float ?? 1.0
+        let storedRate  = UserDefaults.standard.double(forKey: AppStorageKey.speechRate)
+        let storedPitch = UserDefaults.standard.double(forKey: AppStorageKey.speechPitch)
+        let rate:  Float = storedRate  > 0 ? Float(storedRate)  : 0.5
+        let pitch: Float = storedPitch > 0 ? Float(storedPitch) : 1.0
 
         if previewSynth.isSpeaking { previewSynth.stopSpeaking(at: .immediate) }
 
