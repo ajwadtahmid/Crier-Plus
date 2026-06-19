@@ -1,14 +1,9 @@
 import Foundation
-import FoundationModels
 
-@Generable
+// Plain struct used by views — no FoundationModels dependency.
+// The @Generable counterpart lives privately inside MessageWriterService.
 struct MessageSuggestions {
-    @Guide(description: "A warm, friendly reminder message using the user's name")
-    var friendly: String
-
-    @Guide(description: "An energetic, motivating reminder message using the user's name")
-    var motivating: String
-
-    @Guide(description: "A clear, direct reminder message using the user's name")
-    var direct: String
+    let friendly: String
+    let motivating: String
+    let direct: String
 }

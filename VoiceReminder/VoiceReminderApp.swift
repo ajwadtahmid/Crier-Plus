@@ -19,12 +19,25 @@ struct VoiceReminderApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                ReminderListView()
-                    .modelContainer(container)
-            } else {
-                OnboardingView()
-                    .modelContainer(container)
+            Group {
+                if hasCompletedOnboarding {
+                    ReminderListView()
+                } else {
+                    OnboardingView()
+                }
+            }
+            .modelContainer(container)
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { notificationDelegate.pendingAlarmTitle != nil },
+                    set: { if !$0 { notificationDelegate.pendingAlarmTitle = nil } }
+                )
+            ) {
+                if let title = notificationDelegate.pendingAlarmTitle {
+                    AlarmRingView(reminderTitle: title) {
+                        notificationDelegate.pendingAlarmTitle = nil
+                    }
+                }
             }
         }
     }
@@ -86,8 +99,10 @@ struct OnboardingView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
-                        .background(enteredName.trimmingCharacters(in: .whitespaces).isEmpty
-                                    ? Color("Primary").opacity(0.5) : Color("Primary"))
+                        .background(
+                            enteredName.trimmingCharacters(in: .whitespaces).isEmpty
+                                ? Color("Primary").opacity(0.5) : Color("Primary")
+                        )
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .disabled(enteredName.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -111,15 +126,15 @@ struct OnboardingView: View {
     }
 
     private func requestNotificationPermission() {
-        Task {
-            try? await NotificationService.shared.requestPermission()
-        }
+        Task { try? await NotificationService.shared.requestPermission() }
     }
 }
 
 // MARK: - Notification Delegate
 
 final class AppNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, ObservableObject {
+    @Published var pendingAlarmTitle: String?
+
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
@@ -130,6 +145,8 @@ final class AppNotificationDelegate: NSObject, UNUserNotificationCenterDelegate,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        let title = response.notification.request.content.title
+        DispatchQueue.main.async { self.pendingAlarmTitle = title }
         completionHandler()
     }
 

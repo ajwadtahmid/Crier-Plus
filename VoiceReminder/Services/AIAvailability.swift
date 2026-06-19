@@ -9,17 +9,21 @@ enum AIAvailabilityStatus {
     case unknown
 }
 
+// Safe to call from any iOS version — does the #available check internally.
 func checkAIAvailability() -> AIAvailabilityStatus {
-    switch SystemLanguageModel.default.availability {
-    case .available:
-        return .ready
-    case .unavailable(.deviceNotEligible):
-        return .unsupportedDevice
-    case .unavailable(.appleIntelligenceNotEnabled):
-        return .needsToEnableInSettings
-    case .unavailable(.modelNotReady):
-        return .downloading
-    default:
-        return .unknown
+    if #available(iOS 26, *) {
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return .ready
+        case .unavailable(.deviceNotEligible):
+            return .unsupportedDevice
+        case .unavailable(.appleIntelligenceNotEnabled):
+            return .needsToEnableInSettings
+        case .unavailable(.modelNotReady):
+            return .downloading
+        default:
+            return .unknown
+        }
     }
+    return .unsupportedDevice
 }
