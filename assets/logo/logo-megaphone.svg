@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF"/>
+      <stop offset="100%" stop-color="#0044BB"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9F0A"/>
+      <stop offset="100%" stop-color="#FF6A00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="120" height="120" rx="26" fill="url(#bg)"/>
+
+  <!--
+    Megaphone (all white elements):
+
+    Layout — left-to-right:
+      Handle  x=13–25  y=71–88  (grip below mouthpiece)
+      Mouth   x=13–30  y=49–71  (narrow cap, the end you speak into)
+      Horn    x=30–78            (trapezoid widening to the right)
+               left  y=49–71 (22 px, matches mouthpiece exactly)
+               right y=24–96 (72 px, centred on y=60)
+      Waves   x=83+              (two arcs beyond the bell)
+
+    All y-coords centred on y=60 so the megaphone is vertically balanced.
+  -->
+
+  <!-- Handle -->
+  <rect x="13" y="71" width="13" height="17" rx="5" fill="white" fill-opacity="0.75"/>
+
+  <!-- Mouthpiece cap — shares exact y boundary with horn left edge -->
+  <rect x="13" y="49" width="17" height="22" rx="3" fill="white" fill-opacity="0.95"/>
+
+  <!--
+    Horn body.
+    Left edge  (x=30): y=49 to y=71  → 22 px, centre y=60
+    Right edge (x=78): y=24 to y=96  → 72 px, centre y=60  ✓ aligned
+  -->
+  <polygon points="30,49 78,24 78,96 30,71" fill="white" fill-opacity="0.90"/>
+
+  <!--
+    Bell rim — single stroke ellipse at the opening, gives depth.
+    No fill so it doesn't obscure the horn; single stroke-opacity, no duplicate opacity.
+  -->
+  <ellipse cx="78" cy="60" rx="5" ry="36"
+           fill="none" stroke="white" stroke-width="2.5" stroke-opacity="0.45"/>
+
+  <!-- Sound wave 1 (inner) -->
+  <path d="M 83 50 Q 93 60 83 70"
+        stroke="white" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-opacity="0.90"/>
+
+  <!-- Sound wave 2 (outer) -->
+  <path d="M 91 42 Q 106 60 91 78"
+        stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-opacity="0.55"/>
+
+  <!--
+    Plus badge — top-right corner.
+    Center (96, 22), radius 13.
+    Bounds: x 83–109, y 9–35 — fully inside 0–120.
+    Horn right edge is x=78; bell+waves end by x=91; badge starts at x=83. No overlap.
+    Plus bars (13 × 5 px) sit within radius 13.
+  -->
+  <circle cx="96" cy="22" r="13" fill="url(#badge)"/>
+  <rect x="93.5" y="15.5" width="5"  height="13" rx="2" fill="white"/>
+  <rect x="90"   y="19.5" width="12" height="5"  rx="2" fill="white"/>
+</svg>
