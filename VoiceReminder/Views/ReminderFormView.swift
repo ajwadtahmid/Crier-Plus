@@ -16,12 +16,12 @@ struct ReminderFormView: View {
     @State private var repeatDays: Set<Int> = []
     @State private var selectedTone: MessageTone = .friendly
 
-    @State private var isGeneratingAudio = false
     @State private var isLoadingAI = false
     @State private var isSaving = false
 
     @State private var aiSuggestions: MessageSuggestions?
-    @State private var errorMessage: String?
+    @State private var aiErrorMessage: String?
+    @State private var saveErrorMessage: String?
     @State private var showSavedToast = false
 
     private let aiAvailable: Bool
@@ -38,7 +38,7 @@ struct ReminderFormView: View {
                 VStack(spacing: 16) {
                     titleSection
                     messageSection
-                    if aiAvailable { aiSection }
+                    if aiAvailable { aiSection } else { useTemplateButton }
                     if !spokenMessage.isEmpty { toneSection }
                     previewSection
                     schedulingSection
@@ -112,28 +112,48 @@ struct ReminderFormView: View {
             .disabled(isLoadingAI || title.isEmpty)
 
             if isLoadingAI {
-                HStack {
+                HStack(spacing: 8) {
                     ProgressView().progressViewStyle(.circular)
-                    Text("Getting suggestions...").font(.system(size: 14)).foregroundStyle(Color("TextSecondary"))
+                    Text("Getting suggestions...")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color("TextSecondary"))
                 }
                 .frame(maxWidth: .infinity)
             }
 
             if let suggestions = aiSuggestions {
                 VStack(spacing: 8) {
-                    suggestionCard(label: "Friendly", text: suggestions.friendly)
+                    suggestionCard(label: "Friendly",   text: suggestions.friendly)
                     suggestionCard(label: "Motivating", text: suggestions.motivating)
-                    suggestionCard(label: "Direct", text: suggestions.direct)
+                    suggestionCard(label: "Direct",     text: suggestions.direct)
                 }
             }
 
-            if let error = errorMessage {
-                errorCard(message: error) {
-                    errorMessage = nil
-                    spokenMessage = MessageWriterService.shared.templateFallback(username: username, title: title)
+            if let error = aiErrorMessage {
+                inlineErrorCard(message: error) {
+                    aiErrorMessage = nil
+                    spokenMessage = MessageWriterService.shared.templateFallback(
+                        username: username, title: title)
                 }
             }
         }
+    }
+
+    // Shown instead of aiSection when AI is unavailable
+    private var useTemplateButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            spokenMessage = MessageWriterService.shared.templateFallback(
+                username: username, title: title)
+        } label: {
+            Text("Use Template")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Color("Primary"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Primary"), lineWidth: 1))
+        }
+        .disabled(title.isEmpty)
     }
 
     private func suggestionCard(label: String, text: String) -> some View {
@@ -142,8 +162,13 @@ struct ReminderFormView: View {
             spokenMessage = text
         } label: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(label).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color("TextSecondary"))
-                Text(text).font(.system(size: 14)).foregroundStyle(Color("TextPrimary")).multilineTextAlignment(.leading)
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color("TextSecondary"))
+                Text(text)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color("TextPrimary"))
+                    .multilineTextAlignment(.leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
@@ -164,17 +189,23 @@ struct ReminderFormView: View {
             }
             .pickerStyle(.segmented)
 
-            Button {
-                rewriteWithTone()
-            } label: {
-                Text("Rewrite in \(selectedTone.displayName)")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color("Primary"))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color("Primary"), lineWidth: 1))
+            // Rewrite button is hidden when AI is unavailable — it's an AI action
+            if aiAvailable {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    rewriteWithTone()
+                } label: {
+                    Text("Rewrite in \(selectedTone.displayName)")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(isLoadingAI ? Color("Primary").opacity(0.5) : Color("Primary"))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(
+                            isLoadingAI ? Color("Primary").opacity(0.5) : Color("Primary"),
+                            lineWidth: 1))
+                }
+                .disabled(isLoadingAI)
             }
-            .disabled(!aiAvailable || isLoadingAI)
         }
     }
 
@@ -200,7 +231,8 @@ struct ReminderFormView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Schedule").font(.system(size: 16, weight: .semibold))
 
-            DatePicker("Date & Time", selection: $scheduledTime, displayedComponents: [.date, .hourAndMinute])
+            DatePicker("Date & Time", selection: $scheduledTime,
+                       displayedComponents: [.date, .hourAndMinute])
                 .datePickerStyle(.compact)
 
             Picker("Repeat", selection: $repeatPattern) {
@@ -210,9 +242,7 @@ struct ReminderFormView: View {
             }
             .pickerStyle(.menu)
 
-            if repeatPattern == .custom {
-                customDaysPicker
-            }
+            if repeatPattern == .custom { customDaysPicker }
         }
     }
 
@@ -238,9 +268,7 @@ struct ReminderFormView: View {
 
     private var saveSection: some View {
         VStack(spacing: 8) {
-            Button {
-                save()
-            } label: {
+            Button { save() } label: {
                 HStack {
                     if isSaving {
                         ProgressView().progressViewStyle(.circular).tint(.white)
@@ -258,8 +286,25 @@ struct ReminderFormView: View {
             }
             .disabled(title.isEmpty || isSaving)
 
+            if let error = saveErrorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(Color("Destructive"))
+                    Text(error)
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color("TextPrimary"))
+                    Spacer()
+                    Button("Retry") { save() }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color("Primary"))
+                }
+                .padding(12)
+                .background(Color("Destructive").opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
             if showSavedToast {
-                HStack {
+                HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(Color("Accent"))
                     Text("Reminder saved").font(.system(size: 14))
                 }
@@ -268,7 +313,7 @@ struct ReminderFormView: View {
         }
     }
 
-    private func errorCard(message: String, useTemplate: @escaping () -> Void) -> some View {
+    private func inlineErrorCard(message: String, useTemplate: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(message).font(.system(size: 14)).foregroundStyle(.white)
             Button("Use Template", action: useTemplate)
@@ -285,54 +330,61 @@ struct ReminderFormView: View {
 
     private func loadExistingIfNeeded() {
         guard let r = existingReminder else { return }
-        title = r.title
+        title        = r.title
         spokenMessage = r.spokenMessage
         scheduledTime = r.scheduledTime
         repeatPattern = r.repeatPattern
-        repeatDays = Set(r.repeatDays)
+        repeatDays    = Set(r.repeatDays)
     }
 
     private func generateAISuggestions() {
-        isLoadingAI = true
+        isLoadingAI   = true
         aiSuggestions = nil
-        errorMessage = nil
+        aiErrorMessage = nil
         Task {
             do {
-                let result = try await MessageWriterService.shared.generateSuggestions(title: title, username: username)
+                let result = try await MessageWriterService.shared.generateSuggestions(
+                    title: title, username: username)
                 await MainActor.run {
                     aiSuggestions = result
-                    isLoadingAI = false
+                    isLoadingAI   = false
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "AI suggestion failed. Use the template instead."
-                    isLoadingAI = false
+                    aiErrorMessage = "AI suggestion failed. Use the template instead."
+                    isLoadingAI    = false
                 }
             }
         }
     }
 
     private func rewriteWithTone() {
-        isLoadingAI = true
+        isLoadingAI    = true
+        aiErrorMessage = nil
         Task {
             do {
-                let result = try await MessageWriterService.shared.rewrite(message: spokenMessage, tone: selectedTone)
+                let result = try await MessageWriterService.shared.rewrite(
+                    message: spokenMessage, tone: selectedTone)
                 await MainActor.run {
                     spokenMessage = result
-                    isLoadingAI = false
+                    isLoadingAI   = false
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Tone rewrite failed."
-                    isLoadingAI = false
+                    aiErrorMessage = "Tone rewrite failed."
+                    isLoadingAI    = false
                 }
             }
         }
     }
 
     private func save() {
-        isSaving = true
-        errorMessage = nil
+        isSaving          = true
+        saveErrorMessage  = nil
+
+        // Capture old audio path before any mutations
+        let oldAudioPath = existingReminder?.audioFilePath
+
         Task {
             do {
                 let message = spokenMessage.isEmpty
@@ -340,11 +392,18 @@ struct ReminderFormView: View {
                     : spokenMessage
 
                 let reminder = existingReminder ?? Reminder()
-                reminder.title = title
+
+                // Cancel old notification and delete old audio before rescheduling
+                if existingReminder != nil {
+                    NotificationService.shared.cancel(reminder.id)
+                    audioService.deleteAudio(at: oldAudioPath)
+                }
+
+                reminder.title         = title
                 reminder.spokenMessage = message
                 reminder.scheduledTime = scheduledTime
                 reminder.repeatPattern = repeatPattern
-                reminder.repeatDays = Array(repeatDays)
+                reminder.repeatDays    = Array(repeatDays)
 
                 if existingReminder == nil { modelContext.insert(reminder) }
 
@@ -365,8 +424,8 @@ struct ReminderFormView: View {
                 }
             } catch {
                 await MainActor.run {
-                    isSaving = false
-                    errorMessage = "Failed to save: \(error.localizedDescription)"
+                    isSaving         = false
+                    saveErrorMessage = "Save failed: \(error.localizedDescription)"
                 }
             }
         }

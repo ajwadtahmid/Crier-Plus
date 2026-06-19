@@ -80,7 +80,7 @@ struct ReminderListView: View {
                 .foregroundStyle(Color("TextSecondary"))
             Text("No reminders yet")
                 .font(.system(size: 28, weight: .semibold))
-            Text("Tap + to create one")
+            Text("Create one to get started")
                 .font(.system(size: 16))
                 .foregroundStyle(Color("TextSecondary"))
         }
@@ -148,9 +148,11 @@ struct ReminderListView: View {
     }
 
     private func formattedTime(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: Date())
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        formatter.doesRelativeDateFormatting = true
+        return formatter.string(from: date)
     }
 
     private func toggleReminder(_ reminder: Reminder, active: Bool) {
