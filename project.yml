@@ -1,0 +1,68 @@
+name: CrierPlus
+options:
+  minimumXcodeGenVersion: "2.38.0"
+  bundleIdPrefix: com.crierplus
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "26.0"
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: false
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: Primary
+
+targets:
+  CrierPlus:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: CrierPlus
+        excludes:
+          - "Resources/Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.crierplus.CrierPlus
+        PRODUCT_NAME: CrierPlus
+        INFOPLIST_FILE: CrierPlus/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: true
+
+  CrierPlusTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: CrierPlusTests
+    dependencies:
+      - target: CrierPlus
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.crierplus.CrierPlusTests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/CrierPlus.app/CrierPlus"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  CrierPlus:
+    build:
+      targets:
+        CrierPlus: all
+        CrierPlusTests: [test]
+    test:
+      config: Debug
+      targets:
+        - CrierPlusTests
+    run:
+      config: Debug
