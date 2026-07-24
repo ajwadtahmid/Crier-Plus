@@ -45,6 +45,21 @@ struct ReminderModelTests {
     }
 
     @Test
+    func togglingIsActivePersists() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let reminder = Reminder(title: "Toggle Test", spokenMessage: "msg", scheduledTime: .now)
+        context.insert(reminder)
+        try context.save()
+
+        reminder.isActive = false
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<Reminder>())
+        #expect(fetched.first?.isActive == false)
+    }
+
+    @Test
     func defaultsApplyOnInit() throws {
         let container = try makeContainer()
         let context = container.mainContext

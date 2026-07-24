@@ -17,7 +17,7 @@ struct RootView: View {
         case .onboarding:
             OnboardingView()
         case .main:
-            DebugReminderListView()
+            ReminderListView()
         }
     }
 }
