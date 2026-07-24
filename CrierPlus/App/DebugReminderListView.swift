@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
 
@@ -5,16 +6,27 @@ import SwiftUI
 struct DebugReminderListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Reminder.createdAt, order: .reverse) private var reminders: [Reminder]
+    @State private var audioPlayer: AVAudioPlayer?
+    @State private var errorMessage: String?
+
+    private let audioService = AudioGenerationService()
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(reminders) { reminder in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(reminder.title)
-                        Text(reminder.scheduleDescription())
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(reminder.title)
+                            Text(reminder.scheduleDescription())
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Generate & Play", systemImage: "speaker.wave.2", action: {
+                            generateAndPlay(reminder)
+                        })
+                        .labelStyle(.iconOnly)
                     }
                 }
                 .onDelete(perform: deleteReminders)
@@ -24,6 +36,11 @@ struct DebugReminderListView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add Dummy", systemImage: "plus", action: addDummyReminder)
                 }
+            }
+            .alert("Audio Generation Failed", isPresented: .constant(errorMessage != nil), presenting: errorMessage) { _ in
+                Button("OK") { errorMessage = nil }
+            } message: { message in
+                Text(message)
             }
         }
     }
@@ -40,6 +57,26 @@ struct DebugReminderListView: View {
     private func deleteReminders(at offsets: IndexSet) {
         for index in offsets {
             modelContext.delete(reminders[index])
+        }
+    }
+
+    private func generateAndPlay(_ reminder: Reminder) {
+        Task {
+            do {
+                let fileURL = try await audioService.generateAudio(
+                    for: reminder.id,
+                    message: reminder.spokenMessage
+                )
+                try AudioGenerationService.activatePlaybackSession()
+                let player = try AVAudioPlayer(contentsOf: fileURL)
+                audioPlayer = player
+                player.prepareToPlay()
+                if !player.play() {
+                    errorMessage = "Playback didn't start (AVAudioPlayer.play() returned false)."
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
