@@ -44,6 +44,14 @@ actor AudioGenerationService {
         synthesizer.speak(makeUtterance(for: message))
     }
 
+    /// Removes a reminder's rendered `.caf`, if one exists. A no-op if it was never generated.
+    func deleteAudio(for reminderID: UUID) throws {
+        let fileURL = try Self.audioFileURL(for: reminderID)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            try FileManager.default.removeItem(at: fileURL)
+        }
+    }
+
     private func makeUtterance(for message: String) -> AVSpeechUtterance {
         let utterance = AVSpeechUtterance(string: message)
         if let voiceIdentifier = userDefaults.string(forKey: AppStorageKeys.voiceIdentifier),

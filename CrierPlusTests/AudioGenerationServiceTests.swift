@@ -60,6 +60,26 @@ struct AudioGenerationServiceTests {
     }
 
     @Test
+    func deleteAudioRemovesTheGeneratedFile() async throws {
+        let service = makeService()
+        let reminderID = UUID()
+
+        let fileURL = try await service.generateAudio(for: reminderID, message: "Delete me.")
+        #expect(FileManager.default.fileExists(atPath: fileURL.path))
+
+        try await service.deleteAudio(for: reminderID)
+        #expect(!FileManager.default.fileExists(atPath: fileURL.path))
+    }
+
+    @Test
+    func deleteAudioIsANoOpWhenNothingWasGenerated() async throws {
+        let service = makeService()
+        let reminderID = UUID()
+
+        try await service.deleteAudio(for: reminderID)
+    }
+
+    @Test
     func availableVoicesReturnsTheSystemDefaultSet() {
         let voices = AudioGenerationService.availableVoices()
         #expect(!voices.isEmpty)

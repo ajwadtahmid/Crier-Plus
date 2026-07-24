@@ -9,6 +9,16 @@ enum RepeatPattern: String, Codable, CaseIterable, Sendable {
 }
 
 extension RepeatPattern {
+    var displayName: String {
+        switch self {
+        case .none: return "Never"
+        case .daily: return "Every Day"
+        case .weekdays: return "Weekdays"
+        case .weekly: return "Weekly"
+        case .custom: return "Custom"
+        }
+    }
+
     /// Weekday numbers use `Calendar`'s 1-based convention (1 = Sunday ... 7 = Saturday).
     func scheduleDescription(
         repeatDays: [Int] = [],
