@@ -10,6 +10,7 @@ struct ReminderListView: View {
     @State private var reminderPendingDeletion: Reminder?
 
     private let audioService = AudioGenerationService()
+    private let scheduler = ReminderScheduler()
 
     var body: some View {
         NavigationStack {
@@ -23,8 +24,10 @@ struct ReminderListView: View {
                 } else {
                     List {
                         ForEach(reminders) { reminder in
-                            ReminderRow(reminder: reminder)
-                                .contentShape(Rectangle())
+                            ReminderRow(reminder: reminder) { isActive in
+                                toggleScheduling(for: reminder, isActive: isActive)
+                            }
+                            .contentShape(Rectangle())
                                 .onTapGesture { reminderBeingEdited = reminder }
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.appBackground)
@@ -90,8 +93,19 @@ struct ReminderListView: View {
 
     private func delete(_ reminder: Reminder) {
         Task {
+            await scheduler.cancel(for: reminder.id)
             try? await audioService.deleteAudio(for: reminder.id)
             modelContext.delete(reminder)
+        }
+    }
+
+    private func toggleScheduling(for reminder: Reminder, isActive: Bool) {
+        Task {
+            if isActive {
+                _ = try? await scheduler.schedule(ReminderSchedulingPayload(reminder))
+            } else {
+                await scheduler.cancel(for: reminder.id)
+            }
         }
     }
 }

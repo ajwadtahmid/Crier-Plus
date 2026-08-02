@@ -7,6 +7,7 @@ struct ReminderFormView: View {
 
     private let existingReminder: Reminder?
     private let audioService = AudioGenerationService()
+    private let scheduler = ReminderScheduler()
 
     @State private var title: String
     @State private var spokenMessage: String
@@ -16,6 +17,7 @@ struct ReminderFormView: View {
     @State private var isSaving = false
     @State private var validationErrors: [ReminderFormValidationError] = []
     @State private var saveErrorMessage: String?
+    @State private var soundWarningMessage: String?
 
     init(reminder: Reminder? = nil) {
         self.existingReminder = reminder
@@ -88,6 +90,14 @@ struct ReminderFormView: View {
                             .foregroundStyle(Color.appDestructive)
                     }
                 }
+
+                if let soundWarningMessage {
+                    Section {
+                        Label(soundWarningMessage, systemImage: "exclamationmark.triangle")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Color.appTextSecondary)
+                    }
+                }
             }
             .navigationTitle(isEditing ? "Edit Reminder" : "New Reminder")
             .toolbar {
@@ -98,6 +108,8 @@ struct ReminderFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     if isSaving {
                         ProgressView()
+                    } else if soundWarningMessage != nil {
+                        Button("Done") { dismiss() }
                     } else {
                         Button("Save", action: save)
                     }
@@ -144,7 +156,21 @@ struct ReminderFormView: View {
                 let fileURL = try await audioService.generateAudio(for: reminder.id, message: reminder.spokenMessage)
                 reminder.audioFilePath = fileURL.lastPathComponent
                 reminder.voiceIdentifier = UserDefaults.standard.string(forKey: AppStorageKeys.voiceIdentifier)
-                dismiss()
+
+                if reminder.isActive {
+                    let result = try await scheduler.schedule(ReminderSchedulingPayload(reminder))
+                    if case .fallbackTooLong(let duration) = result.soundWarning {
+                        soundWarningMessage =
+                            "This message is \(Int(duration.rounded()))s long — over the 30s limit for a "
+                            + "custom sound, so it'll ring with the default sound instead."
+                    }
+                } else {
+                    await scheduler.cancel(for: reminder.id)
+                }
+
+                if soundWarningMessage == nil {
+                    dismiss()
+                }
             } catch {
                 saveErrorMessage = error.localizedDescription
             }

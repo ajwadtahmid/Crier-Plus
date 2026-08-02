@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReminderRow: View {
     @Bindable var reminder: Reminder
+    var onToggleActive: (Bool) -> Void = { _ in }
 
     var body: some View {
         HStack(spacing: Theme.Spacing.lg) {
@@ -19,9 +20,18 @@ struct ReminderRow: View {
 
             Spacer()
 
-            Toggle("Active", isOn: $reminder.isActive)
-                .labelsHidden()
-                .tint(Color.appAccent)
+            Toggle(
+                "Active",
+                isOn: Binding(
+                    get: { reminder.isActive },
+                    set: { newValue in
+                        reminder.isActive = newValue
+                        onToggleActive(newValue)
+                    }
+                )
+            )
+            .labelsHidden()
+            .tint(Color.appAccent)
         }
         .padding(Theme.Spacing.lg)
         .background(Color.appSecondaryBackground)

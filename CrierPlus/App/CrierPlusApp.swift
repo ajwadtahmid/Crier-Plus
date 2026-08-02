@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct CrierPlusApp: App {
@@ -12,6 +13,11 @@ struct CrierPlusApp: App {
             configurations: [configuration]
         )
     }()
+
+    init() {
+        NotificationService.registerCategories()
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+    }
 
     var body: some Scene {
         WindowGroup {

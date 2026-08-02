@@ -1,10 +1,16 @@
 import SwiftUI
+import UIKit
 
 struct OnboardingView: View {
     @AppStorage(AppStorageKeys.userName) private var storedUserName: String = ""
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding: Bool = false
     @State private var name: String = ""
+    @State private var isContinuing = false
+    @State private var isShowingNotificationDeniedAlert = false
     @FocusState private var isNameFieldFocused: Bool
+
+    private let audioService = AudioGenerationService()
+    private let notificationService = NotificationService()
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -28,15 +34,22 @@ struct OnboardingView: View {
                 .focused($isNameFieldFocused)
                 .submitLabel(.continue)
                 .onSubmit(continueOnboarding)
+                .disabled(isContinuing)
                 .padding(.horizontal, Theme.Spacing.xl)
                 .accessibilityLabel("Your name")
 
-            Button("Continue", action: continueOnboarding)
-                .buttonStyle(.borderedProminent)
-                .tint(Color.appPrimary)
-                .disabled(trimmedName.isEmpty)
-                .frame(minHeight: Theme.Layout.minimumTapTarget)
-                .padding(.horizontal, Theme.Spacing.xl)
+            Button(action: continueOnboarding) {
+                if isContinuing {
+                    ProgressView()
+                } else {
+                    Text("Continue")
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color.appPrimary)
+            .disabled(trimmedName.isEmpty || isContinuing)
+            .frame(minHeight: Theme.Layout.minimumTapTarget)
+            .padding(.horizontal, Theme.Spacing.xl)
 
             Spacer()
             Spacer()
@@ -44,13 +57,39 @@ struct OnboardingView: View {
         .padding(Theme.Spacing.lg)
         .background(Color.appBackground)
         .onAppear { isNameFieldFocused = true }
+        .alert("Notifications Are Off", isPresented: $isShowingNotificationDeniedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+                hasCompletedOnboarding = true
+            }
+            Button("Continue Anyway", role: .cancel) {
+                hasCompletedOnboarding = true
+            }
+        } message: {
+            Text("Crier+ won't be able to ring your reminders until notifications are allowed. You can turn this on later in Settings.")
+        }
     }
 
     private func continueOnboarding() {
         let trimmed = trimmedName
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, !isContinuing else { return }
         storedUserName = trimmed
-        hasCompletedOnboarding = true
+        isContinuing = true
+
+        Task {
+            let isAuthorized = (try? await notificationService.requestAuthorization()) ?? false
+            try? await audioService.speakPreview(
+                "Hi \(trimmed)! I'm Crier. I'll say your reminders out loud, right when you need them."
+            )
+            if isAuthorized {
+                hasCompletedOnboarding = true
+            } else {
+                isContinuing = false
+                isShowingNotificationDeniedAlert = true
+            }
+        }
     }
 }
 
