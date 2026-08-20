@@ -8,6 +8,8 @@ struct ReminderListView: View {
     @State private var isPresentingNewReminderForm = false
     @State private var reminderBeingEdited: Reminder?
     @State private var reminderPendingDeletion: Reminder?
+    @State private var currentSchedulingPath: SchedulingPath = .notification
+    @Environment(\.scenePhase) private var scenePhase
 
     private let audioService = AudioGenerationService()
     private let scheduler = ReminderScheduler()
@@ -24,7 +26,7 @@ struct ReminderListView: View {
                 } else {
                     List {
                         ForEach(reminders) { reminder in
-                            ReminderRow(reminder: reminder) { isActive in
+                            ReminderRow(reminder: reminder, schedulingPath: currentSchedulingPath) { isActive in
                                 toggleScheduling(for: reminder, isActive: isActive)
                             }
                             .contentShape(Rectangle())
@@ -89,6 +91,15 @@ struct ReminderListView: View {
                 Text("\"\(reminder.title)\" will be permanently deleted.")
             }
         }
+        .task { await refreshSchedulingPath() }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task { await refreshSchedulingPath() }
+        }
+    }
+
+    private func refreshSchedulingPath() async {
+        currentSchedulingPath = await scheduler.currentPath()
     }
 
     private func delete(_ reminder: Reminder) {

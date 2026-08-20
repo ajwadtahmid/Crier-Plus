@@ -18,6 +18,7 @@ struct ReminderFormView: View {
     @State private var validationErrors: [ReminderFormValidationError] = []
     @State private var saveErrorMessage: String?
     @State private var soundWarningMessage: String?
+    @State private var schedulingFallbackMessage: String?
 
     init(reminder: Reminder? = nil) {
         self.existingReminder = reminder
@@ -98,6 +99,14 @@ struct ReminderFormView: View {
                             .foregroundStyle(Color.appTextSecondary)
                     }
                 }
+
+                if let schedulingFallbackMessage {
+                    Section {
+                        Label(schedulingFallbackMessage, systemImage: "bell")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Color.appTextSecondary)
+                    }
+                }
             }
             .navigationTitle(isEditing ? "Edit Reminder" : "New Reminder")
             .toolbar {
@@ -108,7 +117,7 @@ struct ReminderFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     if isSaving {
                         ProgressView()
-                    } else if soundWarningMessage != nil {
+                    } else if soundWarningMessage != nil || schedulingFallbackMessage != nil {
                         Button("Done") { dismiss() }
                     } else {
                         Button("Save", action: save)
@@ -164,11 +173,16 @@ struct ReminderFormView: View {
                             "This message is \(Int(duration.rounded()))s long — over the 30s limit for a "
                             + "custom sound, so it'll ring with the default sound instead."
                     }
+                    if result.path == .notification {
+                        schedulingFallbackMessage =
+                            "Ringing as a notification instead of a system alarm, since Alarm access isn't on. "
+                            + "Turn it on in Settings so this reminder can ring through Silent mode and Focus."
+                    }
                 } else {
                     await scheduler.cancel(for: reminder.id)
                 }
 
-                if soundWarningMessage == nil {
+                if soundWarningMessage == nil && schedulingFallbackMessage == nil {
                     dismiss()
                 }
             } catch {

@@ -11,6 +11,7 @@ struct OnboardingView: View {
 
     private let audioService = AudioGenerationService()
     private let notificationService = NotificationService()
+    private let alarmService = AlarmKitService()
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -80,6 +81,10 @@ struct OnboardingView: View {
 
         Task {
             let isAuthorized = (try? await notificationService.requestAuthorization()) ?? false
+            // Alarm access is the primary delivery path when granted, but a denial isn't fatal —
+            // the notification path above still rings reminders, so this is requested opportunistically
+            // without blocking onboarding the way a notification denial does.
+            _ = try? await alarmService.requestAuthorization()
             try? await audioService.speakPreview(
                 "Hi \(trimmed)! I'm Crier. I'll say your reminders out loud, right when you need them."
             )

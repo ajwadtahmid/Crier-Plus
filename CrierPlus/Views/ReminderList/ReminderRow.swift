@@ -2,7 +2,12 @@ import SwiftUI
 
 struct ReminderRow: View {
     @Bindable var reminder: Reminder
+    var schedulingPath: SchedulingPath = .notification
     var onToggleActive: (Bool) -> Void = { _ in }
+
+    private var schedulingPathLabel: String {
+        schedulingPath == .alarm ? "Rings as a system alarm" : "Rings as a notification"
+    }
 
     var body: some View {
         HStack(spacing: Theme.Spacing.lg) {
@@ -19,6 +24,10 @@ struct ReminderRow: View {
             }
 
             Spacer()
+
+            Image(systemName: schedulingPath == .alarm ? "alarm.fill" : "bell.fill")
+                .foregroundStyle(Color.appTextSecondary)
+                .accessibilityLabel(schedulingPathLabel)
 
             Toggle(
                 "Active",
@@ -37,7 +46,7 @@ struct ReminderRow: View {
         .background(Color.appSecondaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(reminder.title), \(reminder.scheduleDescription())")
+        .accessibilityLabel("\(reminder.title), \(reminder.scheduleDescription()), \(schedulingPathLabel)")
     }
 }
 
