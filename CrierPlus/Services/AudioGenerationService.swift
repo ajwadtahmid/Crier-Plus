@@ -4,6 +4,7 @@ import Foundation
 actor AudioGenerationService {
     private let synthesizer = AVSpeechSynthesizer()
     private let userDefaults: UserDefaults
+    private var replayPlayer: AVAudioPlayer?
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -42,6 +43,21 @@ actor AudioGenerationService {
     func speakPreview(_ message: String) throws {
         try Self.activatePlaybackSession()
         synthesizer.speak(makeUtterance(for: message))
+    }
+
+    /// Replays the exact audio that was scheduled — the original rendered `.caf` — so Replay
+    /// matches what the user just heard and can't drift if voice settings changed since. Falls
+    /// back to live synthesis only when that file is missing.
+    func replay(for reminderID: UUID, message: String) throws {
+        let fileURL = try Self.audioFileURL(for: reminderID)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            try speakPreview(message)
+            return
+        }
+        try Self.activatePlaybackSession()
+        let player = try AVAudioPlayer(contentsOf: fileURL)
+        replayPlayer = player
+        player.play()
     }
 
     /// Removes a reminder's rendered `.caf`, if one exists. A no-op if it was never generated.

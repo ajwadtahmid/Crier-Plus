@@ -2,10 +2,6 @@ import AlarmKit
 import Foundation
 import SwiftUI
 
-/// Placeholder Live Activity metadata for AlarmKit's generic `Metadata` parameter — Phase 7 will
-/// replace this with richer content once the ring screen/Dynamic Island needs it.
-struct EmptyAlarmMetadata: AlarmMetadata {}
-
 /// Seam over `AlarmManager` so tests can substitute a fake without hardware or alarm authorization.
 /// `scheduleAlarm` wraps the real `schedule(id:configuration:) -> Alarm` and discards its result —
 /// `Alarm` has no public initializer beyond `Decodable` and `AlarmConfiguration` exposes no
@@ -20,6 +16,8 @@ protocol AlarmManagerProtocol: Sendable {
         configuration: AlarmManager.AlarmConfiguration<Metadata>
     ) async throws
     func cancel(id: Alarm.ID) throws
+    func stop(id: Alarm.ID) throws
+    func countdown(id: Alarm.ID) throws
 }
 
 /// `AlarmManager` isn't declared `Sendable` in the shipped SDK, but `.shared` is a process-wide
@@ -64,8 +62,9 @@ actor AlarmKitService {
             secondaryButton: snoozeButton,
             secondaryButtonBehavior: .countdown
         )
+        let countdown = AlarmPresentation.Countdown(title: "Snoozed")
         let attributes = AlarmAttributes<EmptyAlarmMetadata>(
-            presentation: AlarmPresentation(alert: alert),
+            presentation: AlarmPresentation(alert: alert, countdown: countdown),
             metadata: nil,
             tintColor: .appPrimary
         )
@@ -77,7 +76,7 @@ actor AlarmKitService {
                 scheduledTime: reminder.scheduledTime
             ),
             attributes: attributes,
-            stopIntent: nil,
+            stopIntent: DismissAlarmIntent(reminderID: reminder.id),
             secondaryIntent: nil,
             sound: .default
         )
@@ -87,6 +86,18 @@ actor AlarmKitService {
 
     func cancel(for reminderID: UUID) throws {
         try manager.cancel(id: reminderID)
+    }
+
+    /// Mirrors what tapping the alert's system Stop control does — used when the user dismisses
+    /// from `AlarmRingView` while the app happens to be in the foreground.
+    func stop(for reminderID: UUID) throws {
+        try manager.stop(id: reminderID)
+    }
+
+    /// Mirrors what tapping the alert's secondary (snooze) control does — used when the user
+    /// snoozes from `AlarmRingView` while the app happens to be in the foreground.
+    func countdown(for reminderID: UUID) throws {
+        try manager.countdown(id: reminderID)
     }
 }
 

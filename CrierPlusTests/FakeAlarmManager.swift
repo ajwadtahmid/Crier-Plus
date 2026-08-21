@@ -29,4 +29,15 @@ final class FakeAlarmManager: AlarmManagerProtocol, @unchecked Sendable {
         scheduledAlarmIDs.remove(id)
         cancelledAlarmIDs.append(id)
     }
+
+    private(set) var stoppedAlarmIDs: [UUID] = []
+    private(set) var countdownAlarmIDs: [UUID] = []
+
+    func stop(id: Alarm.ID) throws {
+        stoppedAlarmIDs.append(id)
+    }
+
+    func countdown(id: Alarm.ID) throws {
+        countdownAlarmIDs.append(id)
+    }
 }

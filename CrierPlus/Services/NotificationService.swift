@@ -179,21 +179,7 @@ actor NotificationService {
     func schedule(_ reminder: ReminderSchedulingPayload) async throws -> NotificationScheduleResult {
         await cancel(for: reminder.id)
 
-        var soundName: String?
-        var soundWarning: CustomSoundResolution?
-
-        if let audioFilePath = reminder.audioFilePath {
-            let audioURL = try AudioGenerationService.audioDirectory().appendingPathComponent(audioFilePath)
-            if FileManager.default.fileExists(atPath: audioURL.path) {
-                let duration = try Self.duration(ofAudioAt: audioURL)
-                switch CustomSoundResolver.resolve(duration: duration) {
-                case .useCustomSound:
-                    soundName = try Self.installCustomSound(from: audioURL)
-                case .fallbackTooLong(let tooLongDuration):
-                    soundWarning = .fallbackTooLong(duration: tooLongDuration)
-                }
-            }
-        }
+        let (soundName, soundWarning) = try await Self.resolveSound(for: reminder)
 
         let plans = NotificationTriggerPlanner.plans(
             repeatPattern: reminder.repeatPattern,
@@ -212,6 +198,26 @@ actor NotificationService {
         }
 
         return NotificationScheduleResult(requestIdentifiers: identifiers, soundWarning: soundWarning)
+    }
+
+    /// A single one-off follow-up reusing the reminder's existing sound, fired `interval` seconds
+    /// out — used by the Snooze action instead of touching the reminder's normal recurring
+    /// schedule. The identifier still carries the reminder's UUID prefix, so a subsequent `cancel`
+    /// or reschedule sweeps this up along with everything else for that reminder.
+    @discardableResult
+    func scheduleSnooze(
+        _ reminder: ReminderSchedulingPayload,
+        after interval: TimeInterval
+    ) async throws -> NotificationScheduleResult {
+        let (soundName, soundWarning) = try await Self.resolveSound(for: reminder)
+
+        let identifier = "\(reminder.id.uuidString)-snooze"
+        let content = Self.makeContent(for: reminder, soundName: soundName)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        try await center.add(request)
+
+        return NotificationScheduleResult(requestIdentifiers: [identifier], soundWarning: soundWarning)
     }
 
     func cancel(for reminderID: UUID) async {
@@ -241,6 +247,22 @@ extension NotificationService {
         content.userInfo = ["reminderID": reminder.id.uuidString]
         content.sound = soundName.map { UNNotificationSound(named: UNNotificationSoundName($0)) } ?? .default
         return content
+    }
+
+    private static func resolveSound(
+        for reminder: ReminderSchedulingPayload
+    ) async throws -> (soundName: String?, soundWarning: CustomSoundResolution?) {
+        guard let audioFilePath = reminder.audioFilePath else { return (nil, nil) }
+        let audioURL = try AudioGenerationService.audioDirectory().appendingPathComponent(audioFilePath)
+        guard FileManager.default.fileExists(atPath: audioURL.path) else { return (nil, nil) }
+
+        let duration = try Self.duration(ofAudioAt: audioURL)
+        switch CustomSoundResolver.resolve(duration: duration) {
+        case .useCustomSound:
+            return (try Self.installCustomSound(from: audioURL), nil)
+        case .fallbackTooLong(let tooLongDuration):
+            return (nil, .fallbackTooLong(duration: tooLongDuration))
+        }
     }
 
     private static func duration(ofAudioAt url: URL) throws -> TimeInterval {

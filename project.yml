@@ -38,6 +38,26 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: true
+    dependencies:
+      - target: CrierPlusWidget
+        embed: true
+
+  CrierPlusWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: CrierPlusWidget
+        excludes:
+          - "Info.plist"
+      - path: CrierPlus/Models/AlarmMetadata.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.crierplus.CrierPlus.CrierPlusWidget
+        PRODUCT_NAME: CrierPlusWidget
+        INFOPLIST_FILE: CrierPlusWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: false
+        OTHER_SWIFT_FLAGS: "-parse-as-library"
 
   CrierPlusTests:
     type: bundle.unit-test
@@ -59,6 +79,7 @@ schemes:
     build:
       targets:
         CrierPlus: all
+        CrierPlusWidget: all
         CrierPlusTests: [test]
     test:
       config: Debug

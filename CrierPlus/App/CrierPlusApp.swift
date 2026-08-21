@@ -4,15 +4,7 @@ import UserNotifications
 
 @main
 struct CrierPlusApp: App {
-    let modelContainer: ModelContainer = {
-        let schema = Schema(versionedSchema: CrierPlusSchemaV1.self)
-        let configuration = ModelConfiguration(schema: schema)
-        return try! ModelContainer(
-            for: schema,
-            migrationPlan: CrierPlusMigrationPlan.self,
-            configurations: [configuration]
-        )
-    }()
+    let modelContainer: ModelContainer = try! CrierPlusModelContainer.make()
 
     init() {
         NotificationService.registerCategories()
