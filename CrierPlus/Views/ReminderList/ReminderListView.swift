@@ -9,6 +9,7 @@ struct ReminderListView: View {
     @State private var reminderBeingEdited: Reminder?
     @State private var reminderPendingDeletion: Reminder?
     @State private var currentSchedulingPath: SchedulingPath = .notification
+    @State private var isPresentingSettings = false
     @Environment(\.scenePhase) private var scenePhase
 
     private let audioService = AudioGenerationService()
@@ -65,6 +66,9 @@ struct ReminderListView: View {
             }
             .navigationTitle("Reminders")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Settings", systemImage: "gearshape") { isPresentingSettings = true }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add Reminder", systemImage: "plus") { isPresentingNewReminderForm = true }
                 }
@@ -74,6 +78,16 @@ struct ReminderListView: View {
             }
             .sheet(item: $reminderBeingEdited) { reminder in
                 ReminderFormView(reminder: reminder)
+            }
+            .sheet(isPresented: $isPresentingSettings) {
+                NavigationStack {
+                    SettingsView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { isPresentingSettings = false }
+                            }
+                        }
+                }
             }
             .alert(
                 "Delete Reminder?",

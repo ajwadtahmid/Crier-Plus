@@ -175,6 +175,13 @@ actor NotificationService {
         try await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
+    /// A live system status read for the Settings permission row — not part of `NotificationCenterProtocol`
+    /// since `UNNotificationSettings` has no public initializer for a fake to construct, and this
+    /// display-only read isn't exercised by any test (the 🧑 checkpoint covers it manually).
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
     @discardableResult
     func schedule(_ reminder: ReminderSchedulingPayload) async throws -> NotificationScheduleResult {
         await cancel(for: reminder.id)
