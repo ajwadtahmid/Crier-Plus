@@ -8,6 +8,8 @@ struct ReminderFormView: View {
     private let existingReminder: Reminder?
     private let audioService = AudioGenerationService()
     private let scheduler = ReminderScheduler()
+    private let messageWriterService = MessageWriterService()
+    private let aiAvailability = AIAvailability()
 
     @State private var title: String
     @State private var spokenMessage: String
@@ -15,10 +17,12 @@ struct ReminderFormView: View {
     @State private var repeatPattern: RepeatPattern
     @State private var repeatDays: Set<Int>
     @State private var isSaving = false
+    @State private var isWritingMessage = false
     @State private var validationErrors: [ReminderFormValidationError] = []
     @State private var saveErrorMessage: String?
     @State private var soundWarningMessage: String?
     @State private var schedulingFallbackMessage: String?
+    @State private var aiErrorMessage: String?
 
     init(reminder: Reminder? = nil) {
         self.existingReminder = reminder
@@ -30,6 +34,14 @@ struct ReminderFormView: View {
     }
 
     private var isEditing: Bool { existingReminder != nil }
+
+    private var isAIAvailable: Bool {
+        aiAvailability.status == .available
+    }
+
+    private var trimmedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         NavigationStack {
@@ -58,6 +70,32 @@ struct ReminderFormView: View {
                     }
                     if validationErrors.contains(.messageTooLong) {
                         Text("Message must be \(ReminderFormValidator.messageCharacterLimit) characters or fewer.")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Color.appDestructive)
+                    }
+
+                    if isWritingMessage {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Menu(isAIAvailable ? "Suggest Message" : "Use Template") {
+                            ForEach(SuggestionTone.allCases, id: \.self) { tone in
+                                Button(tone.displayName) { requestSuggestion(tone: tone) }
+                            }
+                        }
+                        .disabled(trimmedTitle.isEmpty)
+
+                        if !spokenMessage.isEmpty {
+                            Menu("Rewrite Tone") {
+                                ForEach(RewriteTone.allCases, id: \.self) { tone in
+                                    Button(tone.displayName) { requestRewrite(tone: tone) }
+                                }
+                            }
+                        }
+                    }
+
+                    if let aiErrorMessage {
+                        Text(aiErrorMessage)
                             .font(Theme.Typography.caption)
                             .foregroundStyle(Color.appDestructive)
                     }
@@ -123,6 +161,33 @@ struct ReminderFormView: View {
                         Button("Save", action: save)
                     }
                 }
+            }
+        }
+    }
+
+    private func requestSuggestion(tone: SuggestionTone) {
+        aiErrorMessage = nil
+        isWritingMessage = true
+        Task {
+            defer { isWritingMessage = false }
+            do {
+                let suggestions = try await messageWriterService.suggestions(forTitle: trimmedTitle)
+                spokenMessage = suggestions.text(for: tone)
+            } catch {
+                aiErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func requestRewrite(tone: RewriteTone) {
+        aiErrorMessage = nil
+        isWritingMessage = true
+        Task {
+            defer { isWritingMessage = false }
+            do {
+                spokenMessage = try await messageWriterService.rewrite(message: spokenMessage, tone: tone)
+            } catch {
+                aiErrorMessage = error.localizedDescription
             }
         }
     }
