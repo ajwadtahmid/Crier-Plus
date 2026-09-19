@@ -139,4 +139,59 @@ struct AlarmKitServiceTests {
         let service = AlarmKitService(manager: manager)
         #expect(await service.authorizationState == .denied)
     }
+
+    @Test
+    func schedulingInstallsTheGeneratedAudioAsTheAlarmSound() async throws {
+        let audioService = AudioGenerationService()
+        let manager = FakeAlarmManager(authorizationState: .authorized)
+        let service = AlarmKitService(manager: manager)
+        let reminderID = UUID()
+
+        let fileURL = try await audioService.generateAudio(for: reminderID, message: "This is a test.")
+        let payload = makePayload(id: reminderID, pattern: .none)
+        let payloadWithAudio = ReminderSchedulingPayload(
+            id: payload.id,
+            title: payload.title,
+            spokenMessage: payload.spokenMessage,
+            scheduledTime: payload.scheduledTime,
+            repeatPattern: payload.repeatPattern,
+            repeatDays: payload.repeatDays,
+            audioFilePath: fileURL.lastPathComponent
+        )
+
+        let warning = try await service.schedule(payloadWithAudio)
+        #expect(warning == nil)
+        #expect(manager.scheduledAlarmIDs.contains(reminderID))
+    }
+
+    @Test
+    func schedulingWarnsWhenAudioExceedsTheCustomSoundLimit() async throws {
+        let audioService = AudioGenerationService()
+        let manager = FakeAlarmManager(authorizationState: .authorized)
+        let service = AlarmKitService(manager: manager)
+        let reminderID = UUID()
+
+        let longMessage = String(
+            repeating: "This is a very long reminder message meant to exceed the custom sound duration limit. ",
+            count: 30
+        )
+        let fileURL = try await audioService.generateAudio(for: reminderID, message: longMessage)
+        let payload = makePayload(id: reminderID, pattern: .none)
+        let payloadWithAudio = ReminderSchedulingPayload(
+            id: payload.id,
+            title: payload.title,
+            spokenMessage: payload.spokenMessage,
+            scheduledTime: payload.scheduledTime,
+            repeatPattern: payload.repeatPattern,
+            repeatDays: payload.repeatDays,
+            audioFilePath: fileURL.lastPathComponent
+        )
+
+        let warning = try await service.schedule(payloadWithAudio)
+        guard case .fallbackTooLong(let duration) = warning else {
+            Issue.record("Expected a fallbackTooLong warning, got \(String(describing: warning))")
+            return
+        }
+        #expect(duration > CustomSoundResolver.maximumDuration)
+    }
 }

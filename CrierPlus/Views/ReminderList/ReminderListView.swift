@@ -120,7 +120,7 @@ struct ReminderListView: View {
         Task {
             await scheduler.cancel(for: reminder.id)
             try? await audioService.deleteAudio(for: reminder.id)
-            try? NotificationService.removeCustomSound(for: reminder.id)
+            try? CustomSoundInstaller.remove(for: reminder.id)
             modelContext.delete(reminder)
         }
     }
@@ -128,7 +128,15 @@ struct ReminderListView: View {
     private func toggleScheduling(for reminder: Reminder, isActive: Bool) {
         Task {
             if isActive {
-                _ = try? await scheduler.schedule(ReminderSchedulingPayload(reminder))
+                do {
+                    try await scheduler.schedule(ReminderSchedulingPayload(reminder))
+                } catch {
+                    // The toggle already flipped optimistically. If scheduling actually failed
+                    // (an AlarmKit alarm-count limit, an XPC hiccup), silently leaving isActive
+                    // true would show "Active" for a reminder that will never ring.
+                    reminder.isActive = false
+                    Haptics.error()
+                }
             } else {
                 await scheduler.cancel(for: reminder.id)
             }

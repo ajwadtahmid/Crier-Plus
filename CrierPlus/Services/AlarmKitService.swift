@@ -1,3 +1,4 @@
+import ActivityKit
 import AlarmKit
 import Foundation
 import SwiftUI
@@ -53,7 +54,17 @@ actor AlarmKitService {
         try await manager.requestAuthorization()
     }
 
-    func schedule(_ reminder: ReminderSchedulingPayload) async throws {
+    /// Resolves the same `Library/Sounds`-installed custom sound the notification path uses, via
+    /// `AlertConfiguration.AlertSound.named(_:)` — so the alarm path speaks the reminder too,
+    /// rather than only ever playing the system default alert. Known caveat: iOS 26.0 shipped
+    /// with an Apple-acknowledged bug where AlarmKit custom sounds played an error tone instead
+    /// of the named file (fixed "in 26.1" per an Apple engineer, though scattered reports of
+    /// custom-sound trouble persisted into 2026) — this is real device-only behavior no amount of
+    /// code review here can confirm; verify during the already-deferred physical-device checkpoint.
+    @discardableResult
+    func schedule(_ reminder: ReminderSchedulingPayload) async throws -> CustomSoundResolution? {
+        let (soundName, soundWarning) = try await CustomSoundInstaller.resolveSound(for: reminder)
+
         let dismissButton = AlarmButton(text: "Dismiss", textColor: .white, systemImageName: "stop.fill")
         let snoozeButton = AlarmButton(text: "Snooze", textColor: .white, systemImageName: "zzz")
         let alert = AlarmPresentation.Alert(
@@ -78,10 +89,11 @@ actor AlarmKitService {
             attributes: attributes,
             stopIntent: DismissAlarmIntent(reminderID: reminder.id),
             secondaryIntent: nil,
-            sound: .default
+            sound: soundName.map { AlertConfiguration.AlertSound.named($0) } ?? .default
         )
 
         try await manager.scheduleAlarm(id: reminder.id, configuration: configuration)
+        return soundWarning
     }
 
     func cancel(for reminderID: UUID) throws {

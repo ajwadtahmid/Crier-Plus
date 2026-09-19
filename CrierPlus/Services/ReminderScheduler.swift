@@ -35,8 +35,8 @@ actor ReminderScheduler {
     func schedule(_ reminder: ReminderSchedulingPayload) async throws -> ReminderSchedulingOutcome {
         if await alarmService.authorizationState == .authorized {
             await notificationService.cancel(for: reminder.id)
-            try await alarmService.schedule(reminder)
-            return ReminderSchedulingOutcome(path: .alarm, soundWarning: nil)
+            let soundWarning = try await alarmService.schedule(reminder)
+            return ReminderSchedulingOutcome(path: .alarm, soundWarning: soundWarning)
         }
 
         try? await alarmService.cancel(for: reminder.id)

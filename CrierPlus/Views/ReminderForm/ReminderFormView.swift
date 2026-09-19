@@ -91,6 +91,8 @@ struct ReminderFormView: View {
                                     Button(tone.displayName) { requestRewrite(tone: tone) }
                                 }
                             }
+
+                            Button("Preview Voice", action: previewMessage)
                         }
                     }
 
@@ -192,6 +194,12 @@ struct ReminderFormView: View {
         }
     }
 
+    private func previewMessage() {
+        Task {
+            try? await audioService.speakPreview(spokenMessage)
+        }
+    }
+
     private func save() {
         let errors = ReminderFormValidator.validate(
             title: title,
@@ -255,6 +263,12 @@ struct ReminderFormView: View {
                     dismiss()
                 }
             } catch {
+                // The title/message/schedule fields above were already written onto the live
+                // model before this async work ran. Without rolling back, autosave (which can
+                // fire on scene backgrounding, independent of this sheet still being open) could
+                // still persist the "failed" edit while the actually-armed alarm/notification
+                // keeps reflecting the old values.
+                modelContext.rollback()
                 Haptics.error()
                 saveErrorMessage = error.localizedDescription
             }

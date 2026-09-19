@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var draftName: String = ""
     @State private var isShowingNameChangeConfirmation = false
     @State private var isRegeneratingAudio = false
+    @State private var pendingRegeneration: Task<Void, Never>?
     @State private var personalVoiceStatus: AVSpeechSynthesizer.PersonalVoiceAuthorizationStatus = .notDetermined
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var alarmStatus: AlarmManager.AuthorizationState = .notDetermined
@@ -39,6 +40,7 @@ struct SettingsView: View {
             nameSection
             voiceSection
             permissionsSection
+            aiAvailabilitySection
             aboutSection
         }
         .navigationTitle("Settings")
@@ -128,6 +130,20 @@ struct SettingsView: View {
         }
     }
 
+    private var aiAvailabilitySection: some View {
+        Section("Apple Intelligence") {
+            switch AIAvailability().status {
+            case .available:
+                LabeledContent("Status", value: "Available")
+            case .unavailable(let reason):
+                LabeledContent("Status", value: "Unavailable")
+                Text(reason)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+        }
+    }
+
     private var aboutSection: some View {
         Section("About") {
             LabeledContent("Version", value: appVersionString)
@@ -148,15 +164,18 @@ struct SettingsView: View {
 
     private func applyNameChange() {
         storedUserName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
-        Task {
-            isRegeneratingAudio = true
-            await regenerator.regenerateAll(reminders)
-            isRegeneratingAudio = false
-        }
+        regenerateAudioForVoiceSettingsChange()
     }
 
+    /// Chains onto whatever regeneration is already in flight rather than starting a new one
+    /// concurrently — `AudioGenerationService.generateAudio` deletes then rewrites the same
+    /// `<uuid>.caf` file, so two overlapping passes over the same reminder set (e.g. picking a
+    /// voice, then releasing the pitch slider before that regeneration finishes) could interleave
+    /// and corrupt a file mid-write.
     private func regenerateAudioForVoiceSettingsChange() {
-        Task {
+        let previous = pendingRegeneration
+        pendingRegeneration = Task {
+            _ = await previous?.value
             isRegeneratingAudio = true
             await regenerator.regenerateAll(reminders)
             isRegeneratingAudio = false
