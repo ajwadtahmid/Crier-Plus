@@ -201,7 +201,10 @@ struct ReminderFormView: View {
             repeatDays: Array(repeatDays)
         )
         validationErrors = errors
-        guard errors.isEmpty else { return }
+        guard errors.isEmpty else {
+            Haptics.error()
+            return
+        }
 
         isSaving = true
         Task {
@@ -247,10 +250,12 @@ struct ReminderFormView: View {
                     await scheduler.cancel(for: reminder.id)
                 }
 
+                Haptics.success()
                 if soundWarningMessage == nil && schedulingFallbackMessage == nil {
                     dismiss()
                 }
             } catch {
+                Haptics.error()
                 saveErrorMessage = error.localizedDescription
             }
         }

@@ -99,6 +99,8 @@ struct SettingsView: View {
                     in: Self.minimumRate...Self.maximumRate,
                     onEditingChanged: { isEditing in if !isEditing { regenerateAudioForVoiceSettingsChange() } }
                 )
+                .accessibilityLabel("Rate")
+                .accessibilityValue(speechRate.formatted(.number.precision(.fractionLength(2))))
             }
 
             VStack(alignment: .leading) {
@@ -110,6 +112,8 @@ struct SettingsView: View {
                     in: Self.minimumPitch...Self.maximumPitch,
                     onEditingChanged: { isEditing in if !isEditing { regenerateAudioForVoiceSettingsChange() } }
                 )
+                .accessibilityLabel("Pitch")
+                .accessibilityValue(speechPitch.formatted(.number.precision(.fractionLength(2))))
             }
 
             Button("Reset to Defaults", action: resetVoiceDefaults)

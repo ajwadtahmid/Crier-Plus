@@ -9,6 +9,10 @@ struct ReminderRow: View {
         schedulingPath == .alarm ? "Rings as a system alarm" : "Rings as a notification"
     }
 
+    private var formattedTime: String {
+        reminder.scheduledTime.formatted(date: .omitted, time: .shortened)
+    }
+
     var body: some View {
         HStack(spacing: Theme.Spacing.lg) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
@@ -22,6 +26,12 @@ struct ReminderRow: View {
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Color.appTextSecondary)
             }
+            // Grouped as one VoiceOver stop so the row reads naturally in one pass, but kept
+            // separate from the icon/toggle below — an `.accessibilityElement(children: .combine)`
+            // on the *whole* row would swallow the Toggle into the same element, making the
+            // "Active" switch unreachable as its own control via VoiceOver.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(formattedTime), \(reminder.title), \(reminder.scheduleDescription())")
 
             Spacer()
 
@@ -35,18 +45,18 @@ struct ReminderRow: View {
                     get: { reminder.isActive },
                     set: { newValue in
                         reminder.isActive = newValue
+                        Haptics.toggle()
                         onToggleActive(newValue)
                     }
                 )
             )
             .labelsHidden()
             .tint(Color.appAccent)
+            .accessibilityLabel("Active")
         }
         .padding(Theme.Spacing.lg)
         .background(Color.appSecondaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.card))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(reminder.title), \(reminder.scheduleDescription()), \(schedulingPathLabel)")
     }
 }
 

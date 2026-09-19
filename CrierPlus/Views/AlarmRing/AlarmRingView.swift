@@ -35,6 +35,7 @@ struct AlarmRingView: View {
 
             Button(action: replay) {
                 Label("Replay", systemImage: "arrow.clockwise")
+                    .frame(minHeight: Theme.Layout.minimumTapTarget)
             }
             .buttonStyle(.bordered)
             .disabled(isProcessing || reminder == nil)
