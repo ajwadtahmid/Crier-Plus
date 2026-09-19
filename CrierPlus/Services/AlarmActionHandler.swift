@@ -15,7 +15,7 @@ actor AlarmActionHandler {
     init(
         alarmService: AlarmKitService = AlarmKitService(),
         notificationService: NotificationService = NotificationService(),
-        makeModelContainer: @escaping @Sendable () throws -> ModelContainer = CrierPlusModelContainer.make
+        makeModelContainer: @escaping @Sendable () throws -> ModelContainer = { CrierPlusModelContainer.shared }
     ) {
         self.alarmService = alarmService
         self.notificationService = notificationService

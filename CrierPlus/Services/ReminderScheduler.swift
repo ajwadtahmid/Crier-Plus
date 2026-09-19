@@ -13,9 +13,12 @@ struct ReminderSchedulingOutcome: Equatable, Sendable {
 
 /// The only entry point views use to schedule or cancel a reminder. AlarmKit is the primary path
 /// when authorized (it rings through Silent mode/Focus); the notification path from Phase 6A is
-/// the fallback when it isn't. Every `schedule` call re-checks authorization and cancels whichever
-/// path isn't chosen, so switching authorization between calls (e.g. after an edit) reissues the
-/// correct path instead of leaving a stale alarm/notification behind.
+/// the fallback when it isn't. Every `schedule` call re-checks authorization and cancels only the
+/// *other* path, so switching authorization between calls (e.g. after an edit) reissues the
+/// correct path instead of leaving a stale alarm/notification behind — and, since the chosen
+/// path's own previous schedule is never cancelled up front, a failure partway through scheduling
+/// the new one leaves the previous working schedule on that path intact rather than leaving the
+/// reminder completely unscheduled.
 actor ReminderScheduler {
     private let alarmService: AlarmKitService
     private let notificationService: NotificationService
@@ -30,13 +33,13 @@ actor ReminderScheduler {
 
     @discardableResult
     func schedule(_ reminder: ReminderSchedulingPayload) async throws -> ReminderSchedulingOutcome {
-        await cancel(for: reminder.id)
-
         if await alarmService.authorizationState == .authorized {
+            await notificationService.cancel(for: reminder.id)
             try await alarmService.schedule(reminder)
             return ReminderSchedulingOutcome(path: .alarm, soundWarning: nil)
         }
 
+        try? await alarmService.cancel(for: reminder.id)
         let result = try await notificationService.schedule(reminder)
         return ReminderSchedulingOutcome(path: .notification, soundWarning: result.soundWarning)
     }

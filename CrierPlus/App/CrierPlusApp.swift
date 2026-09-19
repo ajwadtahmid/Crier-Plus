@@ -4,7 +4,7 @@ import UserNotifications
 
 @main
 struct CrierPlusApp: App {
-    let modelContainer: ModelContainer = try! CrierPlusModelContainer.make()
+    let modelContainer: ModelContainer = CrierPlusModelContainer.shared
 
     init() {
         NotificationService.registerCategories()

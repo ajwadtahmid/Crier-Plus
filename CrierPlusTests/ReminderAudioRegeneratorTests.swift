@@ -33,6 +33,18 @@ struct ReminderAudioRegeneratorTests {
         return (UserDefaults(suiteName: suiteName)!, UserDefaults(suiteName: suiteName)!)
     }
 
+    /// A `ReminderScheduler` backed by fakes, plus the fake notification center to inspect —
+    /// reminders default to `isActive: true`, and `regenerateAll` now reschedules active
+    /// reminders, so every test needs this rather than hitting the real system services.
+    private func makeScheduler() -> (scheduler: ReminderScheduler, notificationCenter: FakeNotificationCenter) {
+        let notificationCenter = FakeNotificationCenter()
+        let scheduler = ReminderScheduler(
+            alarmService: AlarmKitService(manager: FakeAlarmManager(authorizationState: .denied)),
+            notificationService: NotificationService(center: notificationCenter)
+        )
+        return (scheduler, notificationCenter)
+    }
+
     @Test
     func regenerateAllRendersAudioForEveryReminder() async throws {
         let container = try makeContainer()
@@ -46,7 +58,11 @@ struct ReminderAudioRegeneratorTests {
 
         let userDefaults = makeUserDefaultsPair()
         let audioService = AudioGenerationService(userDefaults: userDefaults.audio)
-        let regenerator = ReminderAudioRegenerator(audioService: audioService, userDefaults: userDefaults.regenerator)
+        let regenerator = ReminderAudioRegenerator(
+            audioService: audioService,
+            scheduler: makeScheduler().scheduler,
+            userDefaults: userDefaults.regenerator
+        )
         await regenerator.regenerateAll(reminders)
 
         for reminder in reminders {
@@ -66,7 +82,11 @@ struct ReminderAudioRegeneratorTests {
 
         let userDefaults = makeUserDefaultsPair()
         let audioService = AudioGenerationService(userDefaults: userDefaults.audio)
-        let regenerator = ReminderAudioRegenerator(audioService: audioService, userDefaults: userDefaults.regenerator)
+        let regenerator = ReminderAudioRegenerator(
+            audioService: audioService,
+            scheduler: makeScheduler().scheduler,
+            userDefaults: userDefaults.regenerator
+        )
 
         await regenerator.regenerateAll([reminder])
         let firstModified =
@@ -96,10 +116,70 @@ struct ReminderAudioRegeneratorTests {
         let userDefaults = makeUserDefaultsPair()
         userDefaults.audio.set("com.apple.voice.test-identifier", forKey: AppStorageKeys.voiceIdentifier)
         let audioService = AudioGenerationService(userDefaults: userDefaults.audio)
-        let regenerator = ReminderAudioRegenerator(audioService: audioService, userDefaults: userDefaults.regenerator)
+        let regenerator = ReminderAudioRegenerator(
+            audioService: audioService,
+            scheduler: makeScheduler().scheduler,
+            userDefaults: userDefaults.regenerator
+        )
 
         await regenerator.regenerateAll([reminder])
 
         #expect(reminder.voiceIdentifier == "com.apple.voice.test-identifier")
+    }
+
+    @Test
+    func regenerateAllReschedulesAnActiveReminderSoTheNewSoundTakesEffect() async throws {
+        let container = try makeContainer()
+        let reminder = Reminder(
+            title: "Take a walk",
+            spokenMessage: "Time to take a walk!",
+            scheduledTime: .now.addingTimeInterval(3600),
+            isActive: true
+        )
+        container.mainContext.insert(reminder)
+        try container.mainContext.save()
+        defer { try? FileManager.default.removeItem(at: try! AudioGenerationService.audioFileURL(for: reminder.id)) }
+
+        let userDefaults = makeUserDefaultsPair()
+        let audioService = AudioGenerationService(userDefaults: userDefaults.audio)
+        let (scheduler, notificationCenter) = makeScheduler()
+        let regenerator = ReminderAudioRegenerator(
+            audioService: audioService,
+            scheduler: scheduler,
+            userDefaults: userDefaults.regenerator
+        )
+
+        await regenerator.regenerateAll([reminder])
+
+        let pending = await notificationCenter.pendingNotificationRequests()
+        #expect(!pending.isEmpty)
+    }
+
+    @Test
+    func regenerateAllDoesNotScheduleAnInactiveReminder() async throws {
+        let container = try makeContainer()
+        let reminder = Reminder(
+            title: "Take a walk",
+            spokenMessage: "Time to take a walk!",
+            scheduledTime: .now.addingTimeInterval(3600),
+            isActive: false
+        )
+        container.mainContext.insert(reminder)
+        try container.mainContext.save()
+        defer { try? FileManager.default.removeItem(at: try! AudioGenerationService.audioFileURL(for: reminder.id)) }
+
+        let userDefaults = makeUserDefaultsPair()
+        let audioService = AudioGenerationService(userDefaults: userDefaults.audio)
+        let (scheduler, notificationCenter) = makeScheduler()
+        let regenerator = ReminderAudioRegenerator(
+            audioService: audioService,
+            scheduler: scheduler,
+            userDefaults: userDefaults.regenerator
+        )
+
+        await regenerator.regenerateAll([reminder])
+
+        let pending = await notificationCenter.pendingNotificationRequests()
+        #expect(pending.isEmpty)
     }
 }

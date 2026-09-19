@@ -120,6 +120,7 @@ struct ReminderListView: View {
         Task {
             await scheduler.cancel(for: reminder.id)
             try? await audioService.deleteAudio(for: reminder.id)
+            try? NotificationService.removeCustomSound(for: reminder.id)
             modelContext.delete(reminder)
         }
     }

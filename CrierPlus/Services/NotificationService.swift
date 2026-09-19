@@ -295,4 +295,22 @@ extension NotificationService {
         try FileManager.default.copyItem(at: audioURL, to: destinationURL)
         return audioURL.lastPathComponent
     }
+
+    /// Removes a reminder's custom sound from `Library/Sounds`, if one was ever installed there —
+    /// a no-op otherwise. Call this when a reminder is permanently deleted; `cancel(for:)` alone
+    /// leaves the file behind (by design, since a reschedule of the same reminder reinstalls it),
+    /// so without this every reminder that ever used a custom sound orphans a file forever.
+    static func removeCustomSound(for reminderID: UUID) throws {
+        let soundsDirectory = try FileManager.default.url(
+            for: .libraryDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ).appendingPathComponent("Sounds", isDirectory: true)
+        let fileName = try AudioGenerationService.audioFileURL(for: reminderID).lastPathComponent
+        let fileURL = soundsDirectory.appendingPathComponent(fileName)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            try FileManager.default.removeItem(at: fileURL)
+        }
+    }
 }
